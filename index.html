@@ -1,81 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat with Roald Dahl</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
-    #chatLog { width: 100%; height: 300px; margin-bottom: 1rem; }
-    #userInput { width: 75%; }
-    #sendBtn { width: 20%; }
-    #tokenCounter { margin-top: 1rem; font-weight: bold; }
+    body { font-family: sans-serif; padding: 20px; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+    #counter { margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Chat with Roald Dahl</h1>
-  <textarea id="chatLog" readonly></textarea><br>
-  <input type="text" id="userInput" placeholder="Type your message..." />
-  <button id="sendBtn">Send</button>
-  <p id="tokenCounter">Tokens left: 40000</p>
+  <div id="chat"></div>
+  <input id="userInput" type="text" placeholder="Ask something..." />
+  <button onclick="sendMessage()">Send</button>
+  <p id="counter">Loading tokens...</p>
 
   <script>
-    const chatLog = document.getElementById("chatLog");
-    const userInput = document.getElementById("userInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const tokenCounter = document.getElementById("tokenCounter");
-
-    let conversation = [
-      { role: "system", content: "You are Roald Dahl, a whimsical storyteller for kids." }
-    ];
-
-    let tokensLeft = 40000;
-
-    function estimateTokens(text) {
-      return Math.ceil(text.split(" ").length * 1.3); // rough estimate
-    }
-
-    async function askAI() {
+    async function sendMessage() {
+      const input = document.getElementById("userInput").value;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: conversation })
+        body: JSON.stringify({ message: input })
       });
-
-      if (!res.ok) return "Error: Could not reach the API.";
-
       const data = await res.json();
-      return data.choices?.[0]?.message?.content ?? "No reply";
+      document.getElementById("chat").innerHTML += "<p><b>You:</b> " + input + "</p>";
+      document.getElementById("chat").innerHTML += "<p><b>Dahl:</b> " + data.reply + "</p>";
+      document.getElementById("userInput").value = "";
+      updateCounter();
     }
 
-    sendBtn.addEventListener("click", async () => {
-      const msg = userInput.value.trim();
-      if (!msg) return;
+    async function updateCounter() {
+      const res = await fetch("/api/usage");
+      const data = await res.json();
+      document.getElementById("counter").innerText = "Tokens left: " + data.tokens_left;
+    }
 
-      const inputCost = estimateTokens(msg);
-      if (tokensLeft - inputCost <= 0) {
-        chatLog.value += "⚠️ Out of tokens!\n";
-        return;
-      }
-      tokensLeft -= inputCost;
-      tokenCounter.innerText = "Tokens left: " + tokensLeft;
-
-      conversation.push({ role: "user", content: msg });
-      chatLog.value += "You: " + msg + "\n";
-      userInput.value = "";
-
-      const reply = await askAI();
-
-      const outputCost = estimateTokens(reply);
-      if (tokensLeft - outputCost <= 0) {
-        chatLog.value += "⚠️ No tokens left for reply!\n";
-        return;
-      }
-      tokensLeft -= outputCost;
-      tokenCounter.innerText = "Tokens left: " + tokensLeft;
-
-      conversation.push({ role: "assistant", content: reply });
-      chatLog.value += "Roald Dahl: " + reply + "\n";
-    });
+    updateCounter();
   </script>
 </body>
 </html>
+
