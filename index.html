@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat with Roald Dahl</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+    #chatLog { width: 100%; height: 300px; margin-bottom: 1rem; }
+    #userInput { width: 75%; }
+    #sendBtn { width: 20%; }
+  </style>
+</head>
+<body>
+  <h1>Chat with Roald Dahl</h1>
+  <textarea id="chatLog" readonly></textarea><br>
+  <input type="text" id="userInput" placeholder="Type your message..." />
+  <button id="sendBtn">Send</button>
+
+  <script>
+    const chatLog = document.getElementById("chatLog");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let conversation = [
+      { role: "system", content: "You are Roald Dahl, a whimsical storyteller for kids." }
+    ];
+
+    async function askAI() {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: conversation })
+      });
+
+      if (!res.ok) return "Error: Could not reach the API.";
+
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content ?? "No reply";
+    }
+
+    sendBtn.addEventListener("click", async () => {
+      const msg = userInput.value.trim();
+      if (!msg) return;
+      conversation.push({ role: "user", content: msg });
+      chatLog.value += "You: " + msg + "\n";
+      userInput.value = "";
+
+      const reply = await askAI();
+      conversation.push({ role: "assistant", content: reply });
+      chatLog.value += "Roald Dahl: " + reply + "\n";
+    });
+  </script>
+</body>
+</html>
