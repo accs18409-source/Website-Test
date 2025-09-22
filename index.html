@@ -8,6 +8,7 @@
     #chatLog { width: 100%; height: 300px; margin-bottom: 1rem; }
     #userInput { width: 75%; }
     #sendBtn { width: 20%; }
+    #tokenCounter { margin-top: 1rem; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -15,15 +16,23 @@
   <textarea id="chatLog" readonly></textarea><br>
   <input type="text" id="userInput" placeholder="Type your message..." />
   <button id="sendBtn">Send</button>
+  <p id="tokenCounter">Tokens left: 40000</p>
 
   <script>
     const chatLog = document.getElementById("chatLog");
     const userInput = document.getElementById("userInput");
     const sendBtn = document.getElementById("sendBtn");
+    const tokenCounter = document.getElementById("tokenCounter");
 
     let conversation = [
       { role: "system", content: "You are Roald Dahl, a whimsical storyteller for kids." }
     ];
+
+    let tokensLeft = 40000;
+
+    function estimateTokens(text) {
+      return Math.ceil(text.split(" ").length * 1.3); // rough estimate
+    }
 
     async function askAI() {
       const res = await fetch("/api/chat", {
@@ -41,11 +50,29 @@
     sendBtn.addEventListener("click", async () => {
       const msg = userInput.value.trim();
       if (!msg) return;
+
+      const inputCost = estimateTokens(msg);
+      if (tokensLeft - inputCost <= 0) {
+        chatLog.value += "⚠️ Out of tokens!\n";
+        return;
+      }
+      tokensLeft -= inputCost;
+      tokenCounter.innerText = "Tokens left: " + tokensLeft;
+
       conversation.push({ role: "user", content: msg });
       chatLog.value += "You: " + msg + "\n";
       userInput.value = "";
 
       const reply = await askAI();
+
+      const outputCost = estimateTokens(reply);
+      if (tokensLeft - outputCost <= 0) {
+        chatLog.value += "⚠️ No tokens left for reply!\n";
+        return;
+      }
+      tokensLeft -= outputCost;
+      tokenCounter.innerText = "Tokens left: " + tokensLeft;
+
       conversation.push({ role: "assistant", content: reply });
       chatLog.value += "Roald Dahl: " + reply + "\n";
     });
