@@ -1,54 +1,30 @@
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-let totalTokens = 40000; // shared pool
-
-// rough token estimator (similar to frontend)
-function estimateTokens(text) {
-  return Math.ceil(text.split(" ").length * 1.3);
-}
-
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).end();
 
-  const { messages } = req.body;
-  if (!messages) return res.status(400).json({ error: "No messages provided" });
+  const { message } = req.body;
 
   try {
-    // estimate cost of user’s latest message
-    const userMessage = messages[messages.length - 1]?.content || "";
-    const inputCost = estimateTokens(userMessage);
-    if (totalTokens - inputCost <= 0) {
-      return res.status(403).json({ error: "Out of tokens" });
-    }
-    totalTokens -= inputCost;
-
-    // ask OpenAI
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages,
-      max_tokens: 100, // cap assistant’s response
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are Roald Dahl, the famous author. Answer whimsically like him." },
+          { role: "user", content: message }
+        ],
+        max_tokens: 200
+      })
     });
 
-    const reply = completion.choices?.[0]?.message?.content ?? "";
-
-    // estimate reply cost
-    const outputCost = estimateTokens(reply);
-    if (totalTokens - outputCost <= 0) {
-      return res.status(403).json({ error: "Out of tokens" });
-    }
-    totalTokens -= outputCost;
-
-    // send reply + updated tokens
-    res.status(200).json({
-      choices: completion.choices,
-      tokens_left: totalTokens,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to get response from OpenAI" });
+    const data = await response.json();
+    res.status(200).json({ reply: data.choices[0].message.content });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Chat request failed" });
   }
 }
+
