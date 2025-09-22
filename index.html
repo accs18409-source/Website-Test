@@ -5,41 +5,152 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat with Roald Dahl</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
-    #counter { margin-top: 10px; font-weight: bold; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #fef6e4;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: #d35400;
+      text-align: center;
+    }
+
+    #chatContainer {
+      width: 100%;
+      max-width: 600px;
+      background: #fff8f0;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      height: 400px;
+    }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border-bottom: 1px solid #f0e0d0;
+    }
+
+    .message {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+
+    .user { background: #ffe0b2; align-self: flex-end; }
+    .dahl { background: #fdd9b5; align-self: flex-start; }
+
+    #inputContainer {
+      display: flex;
+      margin-top: 10px;
+    }
+
+    #userInput {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #e0c7a0;
+      outline: none;
+    }
+
+    #sendBtn {
+      padding: 10px 20px;
+      margin-left: 10px;
+      border-radius: 12px;
+      border: none;
+      background-color: #d35400;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #sendBtn:hover {
+      background-color: #e67e22;
+    }
+
+    #counter {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #a04000;
+    }
   </style>
 </head>
 <body>
   <h1>Chat with Roald Dahl</h1>
-  <div id="chat"></div>
-  <input id="userInput" type="text" placeholder="Ask something..." />
-  <button onclick="sendMessage()">Send</button>
+
+  <div id="chatContainer">
+    <div id="chat"></div>
+
+    <div id="inputContainer">
+      <input id="userInput" type="text" placeholder="Ask something..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
   <p id="counter">Loading tokens...</p>
 
   <script>
+    const chatDiv = document.getElementById("chat");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const counter = document.getElementById("counter");
+
     async function sendMessage() {
-      const input = document.getElementById("userInput").value;
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input })
-      });
-      const data = await res.json();
-      document.getElementById("chat").innerHTML += "<p><b>You:</b> " + input + "</p>";
-      document.getElementById("chat").innerHTML += "<p><b>Dahl:</b> " + data.reply + "</p>";
-      document.getElementById("userInput").value = "";
-      updateCounter();
+      const input = userInput.value.trim();
+      if (!input) return;
+
+      appendMessage(input, "user");
+      userInput.value = "";
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: input })
+        });
+        const data = await res.json();
+        appendMessage(data.reply, "dahl");
+        updateCounter();
+      } catch {
+        appendMessage("⚠️ Error: could not reach the API", "dahl");
+      }
+    }
+
+    function appendMessage(msg, type) {
+      const p = document.createElement("p");
+      p.className = `message ${type}`;
+      p.innerText = msg;
+      chatDiv.appendChild(p);
+      chatDiv.scrollTop = chatDiv.scrollHeight;
     }
 
     async function updateCounter() {
-      const res = await fetch("/api/usage");
-      const data = await res.json();
-      document.getElementById("counter").innerText = "Tokens left: " + data.tokens_left;
+      try {
+        const res = await fetch("/api/usage");
+        const data = await res.json();
+        counter.innerText = "Tokens left: " + data.tokens_left;
+      } catch {
+        counter.innerText = "Tokens left: ? (error fetching)";
+      }
     }
+
+    sendBtn.addEventListener("click", sendMessage);
+    userInput.addEventListener("keypress", e => { if(e.key === "Enter") sendMessage(); });
 
     updateCounter();
   </script>
 </body>
 </html>
+
 
